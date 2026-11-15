@@ -4,8 +4,10 @@ A command-line study tool that turns lecture notes into quiz questions with the 
 
 I built it to study for SOEN 363 (Data Systems) at Concordia University, and to practise working with LLM APIs, relational schema design, and AI-assisted development.
 
-<!-- Screenshot: replace with a real run -->
-![Quiz session](docs/screenshot.png)
+![Quiz session](docs/screenshot2.png)
+
+*Wrong answers show the correct answer, an explanation, and AI feedback on short answers:*
+![Wrong-answer feedback](docs/screenshot.png)
 
 ## Features
 
