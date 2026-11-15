@@ -1,3 +1,10 @@
 .venv/
 .env
 __pycache__/
+
+# SQLite database
+*.db
+
+# OS / tool junk
+.DS_Store
+.pytest_cache/
