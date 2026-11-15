@@ -1,5 +1,7 @@
 """Tests for quizzer.ingest. The OpenAI call is replaced with a fake, so no API is used."""
 
+import random
+
 import pytest
 
 import db
@@ -80,3 +82,19 @@ def test_other_errors_skip_only_that_chunk(conn, tmp_path, monkeypatch):
 
     topics = [row["topic"] for row in db.get_topic_stats(conn)]
     assert topics == ["lec02"]
+
+
+def test_shuffle_keeps_the_correct_choice_correct():
+    choices = ["1NF", "2NF", "3NF", "BCNF"]
+    answer = "C"  # "3NF" is correct
+
+    orders = set()
+    for seed in range(20):  # try many different shuffles
+        new_choices, new_answer = quizzer.shuffle_choices(choices, answer, random.Random(seed))
+
+        assert sorted(new_choices) == sorted(choices)  # same 4 choices, nothing lost
+        assert new_choices[quizzer.LETTERS.index(new_answer)] == "3NF"
+        orders.add(tuple(new_choices))
+
+    assert len(orders) > 1  # the order really does change
+    assert choices == ["1NF", "2NF", "3NF", "BCNF"]  # the original list is untouched

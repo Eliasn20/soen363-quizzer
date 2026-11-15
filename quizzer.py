@@ -32,6 +32,17 @@ def find_note_files(path):
     return sorted(list(path.glob("*.md")) + list(path.glob("*.txt")))
 
 
+def shuffle_choices(choices, answer, rng=random):
+    """Return (shuffled choices, new answer letter) so the answer isn't always in the same spot.
+
+    `answer` is "A"-"D". The original `choices` list is not changed.
+    """
+    correct = choices[LETTERS.index(answer)]
+    shuffled = list(choices)  # copy, so the caller's list stays as it was
+    rng.shuffle(shuffled)
+    return shuffled, LETTERS[shuffled.index(correct)]
+
+
 def ingest(conn, path):
     files = find_note_files(path)
     if not files:
@@ -67,9 +78,12 @@ def ingest(conn, path):
             with conn:  # chunk + its questions are saved together, or not at all
                 chunk_id = db.insert_chunk(conn, str(file), index, h)
                 for q in questions:
+                    choices, answer = None, q["answer"]
+                    if q["qtype"] == "mcq":
+                        choices, answer = shuffle_choices(q["choices"], q["answer"])
                     db.insert_question(
-                        conn, chunk_id, topic, q["qtype"], q["prompt"], q["answer"],
-                        choices=q["choices"] if q["qtype"] == "mcq" else None,
+                        conn, chunk_id, topic, q["qtype"], q["prompt"], answer,
+                        choices=choices,
                         explanation=q["explanation"],
                     )
             print(f"  chunk {index}: saved {len(questions)} question(s)")
