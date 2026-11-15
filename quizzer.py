@@ -12,7 +12,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()  # must run before importing generator, so OPENAI_MODEL is visible
+load_dotenv()  # loads .env (OPENAI_API_KEY, OPENAI_MODEL); generator reads them at request time
 
 import db  # noqa: E402
 import generator  # noqa: E402
