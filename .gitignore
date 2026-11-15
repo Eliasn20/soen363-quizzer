@@ -8,3 +8,6 @@ __pycache__/
 # OS / tool junk
 .DS_Store
 .pytest_cache/
+
+# Real lecture notes (keep private)
+notes/
