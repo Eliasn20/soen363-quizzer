@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS chunks (
     id           INTEGER PRIMARY KEY,
     source_file  TEXT    NOT NULL,
     chunk_index  INTEGER NOT NULL,
-    content_hash TEXT    NOT NULL UNIQUE
+    content_hash TEXT    NOT NULL,
+    -- The same text may appear in two lecture files; each file gets its own chunk.
+    UNIQUE (source_file, content_hash)
 );
 
 CREATE TABLE IF NOT EXISTS questions (
@@ -59,10 +61,11 @@ def init_db(conn):
     conn.executescript(SCHEMA)
 
 
-def chunk_exists(conn, content_hash):
-    """Return True if a chunk with this hash was already ingested."""
+def chunk_exists(conn, source_file, content_hash):
+    """Return True if this file already has a chunk with this hash."""
     row = conn.execute(
-        "SELECT 1 FROM chunks WHERE content_hash = ?", (content_hash,)
+        "SELECT 1 FROM chunks WHERE source_file = ? AND content_hash = ?",
+        (source_file, content_hash),
     ).fetchone()
     return row is not None
 

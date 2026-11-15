@@ -15,14 +15,30 @@ def conn():
 
 def test_chunk_exists_and_insert(conn):
     # Initially, the chunk should not exist
-    assert not db.chunk_exists(conn, "hash1")
+    assert not db.chunk_exists(conn, "file1.txt", "hash1")
 
     # Insert a chunk; the first row in a new table gets id 1
     chunk_id = db.insert_chunk(conn, "file1.txt", 0, "hash1")
     assert chunk_id == 1
 
     # Now the chunk should exist
-    assert db.chunk_exists(conn, "hash1")
+    assert db.chunk_exists(conn, "file1.txt", "hash1")
+
+
+def test_same_hash_allowed_in_different_files(conn):
+    db.insert_chunk(conn, "lec01.md", 0, "same-hash")
+
+    # Same text in another file is a different chunk: not "already done"...
+    assert not db.chunk_exists(conn, "lec02.md", "same-hash")
+    # ...and it can be saved without breaking a UNIQUE rule.
+    db.insert_chunk(conn, "lec02.md", 0, "same-hash")
+    assert db.chunk_exists(conn, "lec02.md", "same-hash")
+
+
+def test_same_hash_in_same_file_is_rejected(conn):
+    db.insert_chunk(conn, "lec01.md", 0, "same-hash")
+    with pytest.raises(sqlite3.IntegrityError):
+        db.insert_chunk(conn, "lec01.md", 1, "same-hash")
 
 
 def test_bad_mcq_is_rejected(conn):

@@ -45,15 +45,23 @@ def ingest(conn, path):
 
         for index, chunk in enumerate(chunks):
             h = chunk_hash(chunk)
-            if db.chunk_exists(conn, h):
+            if db.chunk_exists(conn, str(file), h):
                 print(f"  chunk {index}: already done, skipping")
                 continue
 
             try:
                 questions = generator.generate_questions(chunk)
+            except generator.FatalAPIError as e:
+                # Every other chunk would fail the same way, so stop now.
+                raise SystemExit(f"Stopping ingest: {e}")
             except Exception as e:
                 # Nothing saved, so this chunk will be retried next time.
                 print(f"  chunk {index}: API error, skipping ({e})")
+                continue
+
+            if not questions:
+                # Nothing saved, so this chunk will be retried next time.
+                print(f"  chunk {index}: no valid questions, skipping")
                 continue
 
             with conn:  # chunk + its questions are saved together, or not at all

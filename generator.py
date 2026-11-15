@@ -3,10 +3,23 @@
 import json
 import os
 
+import openai
 from openai import OpenAI
 
 # Change the model with OPENAI_MODEL in .env. Check OpenAI's models page for current names.
-MODEL = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+DEFAULT_MODEL = "gpt-6-luna"
+
+
+class FatalAPIError(Exception):
+    """A problem that will make EVERY request fail (bad key, bad model name).
+
+    Callers should stop instead of retrying chunk after chunk.
+    """
+
+
+def get_model():
+    """The model to use: OPENAI_MODEL if set, otherwise DEFAULT_MODEL."""
+    return os.environ.get("OPENAI_MODEL", DEFAULT_MODEL)
 
 # The shape we force the model to answer in (structured outputs).
 # Strict mode requires every property to be "required" and no extra properties.
@@ -62,25 +75,46 @@ def _get_client():
     """Create the OpenAI client once. It reads OPENAI_API_KEY from the environment."""
     global _client
     if _client is None:
-        _client = OpenAI()
+        try:
+            _client = OpenAI()
+        except openai.OpenAIError as e:  # raised when no API key is set
+            raise FatalAPIError("OPENAI_API_KEY is not set. Add it to your .env file.") from e
     return _client
+
+
+def _is_model_error(error):
+    """True if OpenAI rejected the request because of the model name."""
+    return error.code == "model_not_found" or error.param == "model"
 
 
 def _ask(instructions, user_input, schema_name, schema):
     """Send one request and return the parsed JSON answer as a dict."""
-    response = _get_client().responses.create(
-        model=MODEL,
-        instructions=instructions,
-        input=user_input,
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": schema_name,
-                "schema": schema,
-                "strict": True,
-            }
-        },
-    )
+    model = get_model()
+    try:
+        response = _get_client().responses.create(
+            model=model,
+            instructions=instructions,
+            input=user_input,
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": schema_name,
+                    "schema": schema,
+                    "strict": True,
+                }
+            },
+        )
+    except openai.AuthenticationError as e:
+        raise FatalAPIError(
+            "OpenAI rejected the API key. Check OPENAI_API_KEY in your .env file."
+        ) from e
+    except (openai.NotFoundError, openai.BadRequestError) as e:
+        if _is_model_error(e):
+            raise FatalAPIError(
+                f"OpenAI rejected the model name '{model}'. "
+                "Set OPENAI_MODEL in your .env file to a model your account can use."
+            ) from e
+        raise  # some other bad request: let the caller decide
     return json.loads(response.output_text)
 
 
